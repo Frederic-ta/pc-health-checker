@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PC Health Checker</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Toast container -->
+  <div id="toast-container" aria-live="polite"></div>
+
+  <!-- Onboarding overlay -->
+  <div id="onboarding-overlay" class="onboarding-overlay hidden">
+    <div class="onboarding-backdrop"></div>
+    <div class="onboarding-dialog">
+      <div class="onboarding-step" data-step="0">
+        <div class="onboarding-icon">🏥</div>
+        <h2>Welcome to PC Health Checker</h2>
+        <p>Analyze your Windows diagnostic reports in seconds. Drop files, get a health score, and find problems — all offline, all private.</p>
+      </div>
+      <div class="onboarding-step hidden" data-step="1">
+        <div class="onboarding-icon">📂</div>
+        <h2>Drop Your Reports</h2>
+        <p>Drag & drop Windows report files (battery report, WiFi report, DxDiag, etc.) onto the drop zone. We auto-detect the report type and parse it instantly.</p>
+      </div>
+      <div class="onboarding-step hidden" data-step="2">
+        <div class="onboarding-icon">📋</div>
+        <h2>Generate Reports Easily</h2>
+        <p>Don't have reports yet? Switch to the <strong>Reports &amp; Commands</strong> tab to copy commands or download a script that generates all reports at once.</p>
+      </div>
+      <div class="onboarding-step hidden" data-step="3">
+        <div class="onboarding-icon">📊</div>
+        <h2>Review &amp; Export</h2>
+        <p>Get a global health score, drill into category breakdowns, filter problems by severity, and export a summary to share with support or keep for your records.</p>
+      </div>
+      <div class="onboarding-nav">
+        <div class="onboarding-dots">
+          <span class="onboarding-dot active" data-dot="0"></span>
+          <span class="onboarding-dot" data-dot="1"></span>
+          <span class="onboarding-dot" data-dot="2"></span>
+          <span class="onboarding-dot" data-dot="3"></span>
+        </div>
+        <div class="onboarding-actions">
+          <label class="onboarding-dismiss">
+            <input type="checkbox" id="onboarding-dismiss-check">
+            Don't show again
+          </label>
+          <div class="onboarding-buttons">
+            <button id="onboarding-skip" class="btn btn-ghost">Skip</button>
+            <button id="onboarding-next" class="btn btn-primary">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <h1 class="app-title"><span class="title-icon">🏥</span> PC Health Checker</h1>
+    </div>
+    <div class="header-right">
+      <button id="theme-toggle" class="btn btn-icon" title="Toggle dark/light mode" aria-label="Toggle theme">
+        <span class="theme-icon-dark">🌙</span>
+        <span class="theme-icon-light">☀️</span>
+      </button>
+      <button id="export-btn" class="btn btn-secondary" title="Export health summary">
+        <span class="btn-icon-label">📄</span> Export
+      </button>
+    </div>
+  </header>
+
+  <!-- Tab navigation -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="analyze">
+      <span class="tab-icon">🔍</span> Analyze
+    </button>
+    <button class="tab-btn" data-tab="reports">
+      <span class="tab-icon">📋</span> Reports &amp; Commands
+    </button>
+    <button class="tab-btn" data-tab="about">
+      <span class="tab-icon">ℹ️</span> About
+    </button>
+  </nav>
+
+  <!-- Main content -->
+  <main class="app-main">
+
+    <!-- ===== ANALYZE TAB ===== -->
+    <section id="tab-analyze" class="tab-content active">
+
+      <!-- Drop zone -->
+      <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drop report files here or click to browse">
+        <input type="file" id="file-input" multiple accept=".html,.htm,.xml,.txt,.csv,.log" hidden>
+        <div class="drop-zone-content">
+          <div class="drop-zone-icon">📂</div>
+          <p class="drop-zone-title">Drop report files here</p>
+          <p class="drop-zone-subtitle">or click to browse &mdash; HTML, XML, TXT, CSV supported</p>
+        </div>
+        <div class="drop-zone-hover-content hidden">
+          <div class="drop-zone-icon">📥</div>
+          <p class="drop-zone-title">Release to analyze</p>
+        </div>
+      </div>
+
+      <!-- Health score gauge -->
+      <div id="health-score-section" class="health-score-section">
+        <div class="score-gauge">
+          <svg class="score-ring" viewBox="0 0 160 160" aria-label="Health score gauge">
+            <circle class="score-ring-bg" cx="80" cy="80" r="70" />
+            <circle class="score-ring-fill" cx="80" cy="80" r="70" stroke-dasharray="439.82" stroke-dashoffset="439.82" />
+          </svg>
+          <div class="score-value">
+            <span id="score-number" class="score-number">—</span>
+            <span class="score-label">Health Score</span>
+          </div>
+        </div>
+        <p id="score-description" class="score-description">Drop report files above to calculate your PC health score</p>
+      </div>
+
+      <!-- Search & filter bar -->
+      <div class="search-filter-bar">
+        <div class="search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" class="search-input" placeholder="Search issues, categories, details..." aria-label="Search">
+        </div>
+        <div class="filter-group">
+          <button class="filter-btn active" data-filter-category="all">All</button>
+          <button class="filter-btn" data-filter-category="power">⚡ Power</button>
+          <button class="filter-btn" data-filter-category="system">💻 System</button>
+          <button class="filter-btn" data-filter-category="storage">💾 Storage</button>
+          <button class="filter-btn" data-filter-category="network">🌐 Network</button>
+          <button class="filter-btn" data-filter-category="security">🛡️ Security</button>
+          <button class="filter-btn" data-filter-category="performance">🚀 Performance</button>
+        </div>
+        <div class="filter-group severity-filters">
+          <button class="filter-btn active" data-filter-severity="all">All Severities</button>
+          <button class="filter-btn" data-filter-severity="critical">🔴 Critical</button>
+          <button class="filter-btn" data-filter-severity="warning">🟠 Warning</button>
+          <button class="filter-btn" data-filter-severity="info">🔵 Info</button>
+        </div>
+      </div>
+
+      <!-- Category cards grid -->
+      <div id="category-grid" class="category-grid">
+        <div class="category-card" data-category="power">
+          <div class="card-header">
+            <span class="card-icon">⚡</span>
+            <h3 class="card-title">Power & Battery</h3>
+            <span class="card-score" data-score="">—</span>
+          </div>
+          <div class="card-body">
+            <div class="card-metrics">
+              <span class="metric critical-count" title="Critical issues">🔴 0</span>
+              <span class="metric warning-count" title="Warnings">🟠 0</span>
+              <span class="metric info-count" title="Info">🔵 0</span>
+            </div>
+            <p class="card-summary">No data — drop a battery report, energy report, or sleep study</p>
+          </div>
+          <div class="card-empty-state">
+            <span class="empty-icon">📭</span>
+          </div>
+        </div>
+
+        <div class="category-card" data-category="system">
+          <div class="card-header">
+            <span class="card-icon">💻</span>
+            <h3 class="card-title">System & Hardware</h3>
+            <span class="card-score" data-score="">—</span>
+          </div>
+          <div class="card-body">
+            <div class="card-metrics">
+              <span class="metric critical-count" title="Critical issues">🔴 0</span>
+              <span class="metric warning-count" title="Warnings">🟠 0</span>
+              <span class="metric info-count" title="Info">🔵 0</span>
+            </div>
+            <p class="card-summary">No data — drop an MSInfo32, DxDiag, or SystemInfo report</p>
+          </div>
+          <div class="card-empty-state">
+            <span class="empty-icon">📭</span>
+          </div>
+        </div>
+
+        <div class="category-card" data-category="storage">
+          <div class="card-header">
+            <span class="card-icon">💾</span>
+            <h3 class="card-title">Storage</h3>
+            <span class="card-score" data-score="">—</span>
+          </div>
+          <div class="card-body">
+            <div class="card-metrics">
+              <span class="metric critical-count" title="Critical issues">🔴 0</span>
+              <span class="metric warning-count" title="Warnings">🟠 0</span>
+              <span class="metric info-count" title="Info">🔵 0</span>
+            </div>
+            <p class="card-summary">No data — drop disk health or volume info reports</p>
+          </div>
+          <div class="card-empty-state">
+            <span class="empty-icon">📭</span>
+          </div>
+        </div>
+
+        <div class="category-card" data-category="network">
+          <div class="card-header">
+            <span class="card-icon">🌐</span>
+            <h3 class="card-title">Network</h3>
+            <span class="card-score" data-score="">—</span>
+          </div>
+          <div class="card-body">
+            <div class="card-metrics">
+              <span class="metric critical-count" title="Critical issues">🔴 0</span>
+              <span class="metric warning-count" title="Warnings">🟠 0</span>
+              <span class="metric info-count" title="Info">🔵 0</span>
+            </div>
+            <p class="card-summary">No data — drop a WiFi report or network config</p>
+          </div>
+          <div class="card-empty-state">
+            <span class="empty-icon">📭</span>
+          </div>
+        </div>
+
+        <div class="category-card" data-category="security">
+          <div class="card-header">
+            <span class="card-icon">🛡️</span>
+            <h3 class="card-title">Security</h3>
+            <span class="card-score" data-score="">—</span>
+          </div>
+          <div class="card-body">
+            <div class="card-metrics">
+              <span class="metric critical-count" title="Critical issues">🔴 0</span>
+              <span class="metric warning-count" title="Warnings">🟠 0</span>
+              <span class="metric info-count" title="Info">🔵 0</span>
+            </div>
+            <p class="card-summary">No data — drop update history, event logs, or SFC results</p>
+          </div>
+          <div class="card-empty-state">
+            <span class="empty-icon">📭</span>
+          </div>
+        </div>
+
+        <div class="category-card" data-category="performance">
+          <div class="card-header">
+            <span class="card-icon">🚀</span>
+            <h3 class="card-title">Performance</h3>
+            <span class="card-score" data-score="">—</span>
+          </div>
+          <div class="card-body">
+            <div class="card-metrics">
+              <span class="metric critical-count" title="Critical issues">🔴 0</span>
+              <span class="metric warning-count" title="Warnings">🟠 0</span>
+              <span class="metric info-count" title="Info">🔵 0</span>
+            </div>
+            <p class="card-summary">No data — drop a perfmon report, startup list, or process list</p>
+          </div>
+          <div class="card-empty-state">
+            <span class="empty-icon">📭</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Problems list -->
+      <section id="problems-section" class="problems-section">
+        <div class="problems-header">
+          <h2 class="problems-title">Problems Found <span id="problems-count" class="problems-count">(0)</span></h2>
+        </div>
+        <div id="problems-list" class="problems-list">
+          <div class="empty-problems">
+            <span class="empty-problems-icon">✅</span>
+            <p>No problems detected yet. Drop some report files to begin analysis.</p>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <!-- ===== REPORTS & COMMANDS TAB ===== -->
+    <section id="tab-reports" class="tab-content hidden">
+      <div class="reports-intro">
+        <h2>Generate Windows Reports</h2>
+        <p>Run these commands on your Windows PC to generate diagnostic reports, then drag the files back here for analysis.</p>
+        <div class="reports-actions">
+          <button id="generate-bat-btn" class="btn btn-primary">⬇️ Download .bat Script</button>
+          <button id="generate-ps1-btn" class="btn btn-secondary">⬇️ Download .ps1 Script</button>
+        </div>
+      </div>
+
+      <div id="reports-command-list" class="reports-command-list">
+        <!-- Power & Battery -->
+        <div class="report-group">
+          <h3 class="report-group-title">⚡ Power & Battery</h3>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>Battery Report</h4>
+              <span class="admin-badge">Admin</span>
+            </div>
+            <p class="command-desc">Battery health, design vs full charge capacity, cycle count, recent usage history.</p>
+            <div class="command-block">
+              <code>powercfg /batteryreport /output "%USERPROFILE%\Desktop\battery-report.html"</code>
+              <button class="btn btn-copy" data-copy="powercfg /batteryreport /output &quot;%USERPROFILE%\Desktop\battery-report.html&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: HTML</span>
+          </div>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>Energy Report</h4>
+              <span class="admin-badge">Admin</span>
+            </div>
+            <p class="command-desc">Power policy errors, warnings, informational items affecting energy efficiency.</p>
+            <div class="command-block">
+              <code>powercfg /energy /output "%USERPROFILE%\Desktop\energy-report.html"</code>
+              <button class="btn btn-copy" data-copy="powercfg /energy /output &quot;%USERPROFILE%\Desktop\energy-report.html&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: HTML</span>
+          </div>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>Sleep Study</h4>
+              <span class="admin-badge">Admin</span>
+            </div>
+            <p class="command-desc">Sleep sessions, battery drain rate during sleep, top offenders, wake sources.</p>
+            <div class="command-block">
+              <code>powercfg /sleepstudy /output "%USERPROFILE%\Desktop\sleep-study.html"</code>
+              <button class="btn btn-copy" data-copy="powercfg /sleepstudy /output &quot;%USERPROFILE%\Desktop\sleep-study.html&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: HTML</span>
+          </div>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>Power Schemes</h4>
+            </div>
+            <p class="command-desc">Active power plan and configured power settings.</p>
+            <div class="command-block">
+              <code>powercfg /query > "%USERPROFILE%\Desktop\power-schemes.txt"</code>
+              <button class="btn btn-copy" data-copy="powercfg /query > &quot;%USERPROFILE%\Desktop\power-schemes.txt&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: TXT</span>
+          </div>
+        </div>
+
+        <!-- System & Hardware -->
+        <div class="report-group">
+          <h3 class="report-group-title">💻 System & Hardware</h3>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>MSInfo32</h4>
+            </div>
+            <p class="command-desc">Complete system information: OS, CPU, RAM, GPU, drivers, devices, conflicts.</p>
+            <div class="command-block">
+              <code>msinfo32 /report "%USERPROFILE%\Desktop\msinfo32.txt"</code>
+              <button class="btn btn-copy" data-copy="msinfo32 /report &quot;%USERPROFILE%\Desktop\msinfo32.txt&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: TXT</span>
+          </div>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>DxDiag</h4>
+            </div>
+            <p class="command-desc">GPU details, DirectX version, display driver, audio devices, problems found.</p>
+            <div class="command-block">
+              <code>dxdiag /t "%USERPROFILE%\Desktop\dxdiag.txt"</code>
+              <button class="btn btn-copy" data-copy="dxdiag /t &quot;%USERPROFILE%\Desktop\dxdiag.txt&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: TXT</span>
+          </div>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>System Info</h4>
+            </div>
+            <p class="command-desc">OS version, boot time, total RAM, network config, installed hotfixes.</p>
+            <div class="command-block">
+              <code>systeminfo > "%USERPROFILE%\Desktop\systeminfo.txt"</code>
+              <button class="btn btn-copy" data-copy="systeminfo > &quot;%USERPROFILE%\Desktop\systeminfo.txt&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: TXT</span>
+          </div>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>Driver Query</h4>
+            </div>
+            <p class="command-desc">All installed drivers with version numbers, dates, and status.</p>
+            <div class="command-block">
+              <code>driverquery /v /fo csv > "%USERPROFILE%\Desktop\drivers.csv"</code>
+              <button class="btn btn-copy" data-copy="driverquery /v /fo csv > &quot;%USERPROFILE%\Desktop\drivers.csv&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: CSV</span>
+          </div>
+        </div>
+
+        <!-- Storage -->
+        <div class="report-group">
+          <h3 class="report-group-title">💾 Storage</h3>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>Disk Info</h4>
+            </div>
+            <p class="command-desc">Disk model, size, and health status for all drives.</p>
+            <div class="command-block">
+              <code>wmic diskdrive get model,size,status /format:csv > "%USERPROFILE%\Desktop\disk-info.csv"</code>
+              <button class="btn btn-copy" data-copy="wmic diskdrive get model,size,status /format:csv > &quot;%USERPROFILE%\Desktop\disk-info.csv&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: CSV</span>
+          </div>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>Volume Info</h4>
+            </div>
+            <p class="command-desc">Partition sizes and free space for all volumes.</p>
+            <div class="command-block">
+              <code>wmic volume get caption,capacity,freespace /format:csv > "%USERPROFILE%\Desktop\volume-info.csv"</code>
+              <button class="btn btn-copy" data-copy="wmic volume get caption,capacity,freespace /format:csv > &quot;%USERPROFILE%\Desktop\volume-info.csv&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: CSV</span>
+          </div>
+        </div>
+
+        <!-- Network -->
+        <div class="report-group">
+          <h3 class="report-group-title">🌐 Network</h3>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>WiFi Report</h4>
+              <span class="admin-badge">Admin</span>
+            </div>
+            <p class="command-desc">WiFi connection history, disconnects, signal quality, error events.</p>
+            <div class="command-block">
+              <code>netsh wlan show wlanreport</code>
+              <button class="btn btn-copy" data-copy="netsh wlan show wlanreport" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: HTML (saved to ProgramData)</span>
+          </div>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>Network Config</h4>
+            </div>
+            <p class="command-desc">IP addresses, DNS servers, DHCP, all network adapters.</p>
+            <div class="command-block">
+              <code>ipconfig /all > "%USERPROFILE%\Desktop\network-config.txt"</code>
+              <button class="btn btn-copy" data-copy="ipconfig /all > &quot;%USERPROFILE%\Desktop\network-config.txt&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: TXT</span>
+          </div>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>Firewall Status</h4>
+            </div>
+            <p class="command-desc">Firewall state for all network profiles (Domain, Private, Public).</p>
+            <div class="command-block">
+              <code>netsh advfirewall show allprofiles > "%USERPROFILE%\Desktop\firewall-status.txt"</code>
+              <button class="btn btn-copy" data-copy="netsh advfirewall show allprofiles > &quot;%USERPROFILE%\Desktop\firewall-status.txt&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: TXT</span>
+          </div>
+        </div>
+
+        <!-- Security -->
+        <div class="report-group">
+          <h3 class="report-group-title">🛡️ Security</h3>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>Installed Updates</h4>
+            </div>
+            <p class="command-desc">All installed Windows hotfixes, KB numbers, and install dates.</p>
+            <div class="command-block">
+              <code>wmic qfe list full /format:csv > "%USERPROFILE%\Desktop\updates.csv"</code>
+              <button class="btn btn-copy" data-copy="wmic qfe list full /format:csv > &quot;%USERPROFILE%\Desktop\updates.csv&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: CSV</span>
+          </div>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>System Events</h4>
+              <span class="admin-badge">Admin</span>
+            </div>
+            <p class="command-desc">Recent system event log entries: errors, warnings, BSODs.</p>
+            <div class="command-block">
+              <code>wevtutil qe System /c:100 /f:xml /rd:true > "%USERPROFILE%\Desktop\system-events.xml"</code>
+              <button class="btn btn-copy" data-copy="wevtutil qe System /c:100 /f:xml /rd:true > &quot;%USERPROFILE%\Desktop\system-events.xml&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: XML</span>
+          </div>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>SFC Scan</h4>
+              <span class="admin-badge">Admin</span>
+            </div>
+            <p class="command-desc">System File Checker integrity verification results.</p>
+            <div class="command-block">
+              <code>sfc /verifyonly > "%USERPROFILE%\Desktop\sfc-scan.txt"</code>
+              <button class="btn btn-copy" data-copy="sfc /verifyonly > &quot;%USERPROFILE%\Desktop\sfc-scan.txt&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: TXT</span>
+          </div>
+        </div>
+
+        <!-- Performance -->
+        <div class="report-group">
+          <h3 class="report-group-title">🚀 Performance</h3>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>Perfmon Report</h4>
+              <span class="admin-badge">Admin</span>
+            </div>
+            <p class="command-desc">Comprehensive CPU, disk, memory, and network diagnostics.</p>
+            <div class="command-block">
+              <code>perfmon /report</code>
+              <button class="btn btn-copy" data-copy="perfmon /report" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: HTML</span>
+          </div>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>Startup Programs</h4>
+            </div>
+            <p class="command-desc">All programs that run at boot with their command paths.</p>
+            <div class="command-block">
+              <code>wmic startup get caption,command /format:csv > "%USERPROFILE%\Desktop\startup.csv"</code>
+              <button class="btn btn-copy" data-copy="wmic startup get caption,command /format:csv > &quot;%USERPROFILE%\Desktop\startup.csv&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: CSV</span>
+          </div>
+          <div class="report-command-card">
+            <div class="command-card-header">
+              <h4>Running Processes</h4>
+            </div>
+            <p class="command-desc">Active processes with memory usage and CPU time.</p>
+            <div class="command-block">
+              <code>tasklist /v /fo csv > "%USERPROFILE%\Desktop\processes.csv"</code>
+              <button class="btn btn-copy" data-copy="tasklist /v /fo csv > &quot;%USERPROFILE%\Desktop\processes.csv&quot;" title="Copy command">📋</button>
+            </div>
+            <span class="command-format">Format: CSV</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ABOUT TAB ===== -->
+    <section id="tab-about" class="tab-content hidden">
+      <div class="about-content">
+        <div class="about-hero">
+          <span class="about-logo">🏥</span>
+          <h2>PC Health Checker</h2>
+          <p class="about-version">Version 1.0</p>
+        </div>
+        <div class="about-body">
+          <div class="about-card">
+            <h3>What is this?</h3>
+            <p>PC Health Checker is a free, offline tool that analyzes Windows diagnostic reports and gives you a clear picture of your computer's health. No installation, no data collection — everything runs in your browser.</p>
+          </div>
+          <div class="about-card">
+            <h3>How it works</h3>
+            <ol>
+              <li><strong>Generate reports</strong> — Use the Reports &amp; Commands tab to run diagnostic commands on your Windows PC, or download the all-in-one script.</li>
+              <li><strong>Drop files</strong> — Drag the generated report files onto the Analyze tab.</li>
+              <li><strong>Review results</strong> — Get a health score, see categorized issues, and export a summary.</li>
+            </ol>
+          </div>
+          <div class="about-card">
+            <h3>Privacy</h3>
+            <p>Your data never leaves your browser. All parsing and analysis happens locally on your machine. No servers, no tracking, no cookies beyond your theme preference.</p>
+          </div>
+          <div class="about-card">
+            <h3>Supported Reports</h3>
+            <p>Battery Report, Energy Report, Sleep Study, MSInfo32, DxDiag, SystemInfo, Driver Query, Disk Info, Volume Info, WiFi Report, Network Config, Firewall Status, Installed Updates, System Events, SFC Scan, Perfmon Report, Startup Programs, Running Processes.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>PC Health Checker &mdash; 100% offline &amp; private. No data leaves your browser.</p>
+  </footer>
+
+  <script type="module" src="js/ui.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
