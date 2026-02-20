@@ -11,7 +11,7 @@
 
   detect(content, filename) {
     const fn = (filename || '').toLowerCase();
-    if (fn.includes('msinfo') && fn.endsWith('.txt')) return true;
+    if (fn.includes('msinfo') && (fn.endsWith('.txt') || fn.endsWith('.nfo'))) return true;
     // MSInfo32 reports have a distinctive format
     return /^\[System Summary\]/mi.test(content) ||
            (/OS Name\s/i.test(content) && /System Manufacturer/i.test(content) && /System Model/i.test(content));
