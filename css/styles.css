@@ -1254,3 +1254,114 @@ mark {
 [data-theme="light"] .has-tooltip::before {
   border-top-color: #333;
 }
+
+/* Loaded files section */
+.loaded-files-section {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 12px;
+  background: var(--card-bg, rgba(255,255,255,0.04));
+  border: 1px solid var(--border-color, #333);
+}
+.loaded-files-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.loaded-files-title {
+  font-size: 1rem;
+  margin: 0;
+}
+.loaded-files-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.loaded-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--chip-bg, rgba(79,140,255,0.12));
+  color: var(--chip-color, #8ab4ff);
+  border: 1px solid var(--chip-border, rgba(79,140,255,0.25));
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  transition: background 0.15s;
+}
+.loaded-file-chip .chip-type {
+  font-weight: 600;
+  opacity: 0.7;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+.loaded-file-chip .chip-remove {
+  cursor: pointer;
+  opacity: 0.5;
+  font-size: 0.9rem;
+  transition: opacity 0.15s;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0 2px;
+}
+.loaded-file-chip .chip-remove:hover {
+  opacity: 1;
+}
+.btn-sm {
+  padding: 4px 12px;
+  font-size: 0.82rem;
+}
+
+[data-theme="light"] .loaded-file-chip {
+  --chip-bg: rgba(79,140,255,0.1);
+  --chip-color: #2a6dd9;
+  --chip-border: rgba(79,140,255,0.3);
+}
+
+/* Key info section */
+.key-info-section {
+  margin: 1rem 0;
+}
+.key-info-title {
+  font-size: 1rem;
+  margin: 0 0 0.75rem 0;
+}
+.key-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.key-info-card {
+  background: var(--card-bg, rgba(255,255,255,0.04));
+  border: 1px solid var(--border-color, #333);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.key-info-card h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+.key-info-card .info-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+}
+.info-row .info-label {
+  opacity: 0.6;
+}
+.info-row .info-value {
+  font-weight: 600;
+  text-align: right;
+}
+.info-value.good { color: #4caf50; }
+.info-value.warn { color: #ff9800; }
+.info-value.bad { color: #f44336; }

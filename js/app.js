@@ -151,9 +151,250 @@
   }
 
   function render() {
+    renderLoadedFiles();
+    renderKeyInfo();
     renderCategoryCards();
     renderProblems();
     P.animateScoreRing(state.scores ? state.scores.globalScore : null);
+  }
+
+  // ---- Loaded Files List ----
+  function renderLoadedFiles() {
+    var section = document.getElementById('loaded-files-section');
+    var list = document.getElementById('loaded-files-list');
+    var countEl = document.getElementById('loaded-files-count');
+
+    if (state.parseResults.size === 0) {
+      section.classList.add('hidden');
+      return;
+    }
+
+    section.classList.remove('hidden');
+    countEl.textContent = '(' + state.parseResults.size + ')';
+
+    list.innerHTML = '';
+    state.parseResults.forEach(function(parsed, filename) {
+      var chip = document.createElement('span');
+      chip.className = 'loaded-file-chip';
+      chip.innerHTML = '<span class="chip-type">' + P.escapeHtml(parsed.parser.name) + '</span>' +
+        '<span class="chip-name">' + P.escapeHtml(filename) + '</span>' +
+        '<button class="chip-remove" title="Remove this file">✕</button>';
+      chip.querySelector('.chip-remove').addEventListener('click', function() {
+        state.parseResults.delete(filename);
+        recalculate();
+        render();
+        P.showToast('Removed "' + filename + '"', 'info');
+      });
+      list.appendChild(chip);
+    });
+  }
+
+  // ---- Key Info Panels ----
+  function renderKeyInfo() {
+    var section = document.getElementById('key-info-section');
+    var grid = document.getElementById('key-info-grid');
+
+    if (state.parseResults.size === 0) {
+      section.classList.add('hidden');
+      return;
+    }
+
+    var cards = [];
+    var allResults = Array.from(state.parseResults.values());
+
+    // Collect summaries by parser name
+    var summaries = {};
+    allResults.forEach(function(r) {
+      summaries[r.parser.name] = r.result.summary;
+    });
+
+    // Battery info
+    var bat = summaries['Battery Report'];
+    if (bat) {
+      var rows = [];
+      if (bat.designCapacity) rows.push({ label: 'Design Capacity', value: formatMWh(bat.designCapacity) });
+      if (bat.fullChargeCapacity) rows.push({ label: 'Full Charge Capacity', value: formatMWh(bat.fullChargeCapacity) });
+      if (bat.healthPercent) {
+        var cls = bat.healthPercent >= 80 ? 'good' : bat.healthPercent >= 50 ? 'warn' : 'bad';
+        rows.push({ label: 'Battery Health', value: bat.healthPercent + '%', cls: cls });
+      }
+      if (bat.cycleCount !== null && bat.cycleCount !== undefined) {
+        var ccCls = bat.cycleCount > 1000 ? 'bad' : bat.cycleCount > 500 ? 'warn' : 'good';
+        rows.push({ label: 'Cycle Count', value: bat.cycleCount.toString(), cls: ccCls });
+      }
+      if (bat.avgDrainRate) rows.push({ label: 'Avg Drain Rate', value: (bat.avgDrainRate / 1000).toFixed(1) + ' W' });
+      if (rows.length > 0) cards.push({ title: '🔋 Battery', rows: rows });
+    }
+
+    // Energy report
+    var energy = summaries['Energy Report'];
+    if (energy) {
+      var rows = [];
+      if (energy.errors !== undefined) rows.push({ label: 'Errors', value: energy.errors.toString(), cls: energy.errors > 0 ? 'bad' : 'good' });
+      if (energy.warnings !== undefined) rows.push({ label: 'Warnings', value: energy.warnings.toString(), cls: energy.warnings > 5 ? 'warn' : 'good' });
+      if (energy.informational !== undefined) rows.push({ label: 'Informational', value: energy.informational.toString() });
+      if (rows.length > 0) cards.push({ title: '⚡ Energy Efficiency', rows: rows });
+    }
+
+    // MSInfo / System info
+    var sys = summaries['MSInfo32'] || summaries['MSInfo32 Report'];
+    if (sys) {
+      var rows = [];
+      if (sys.manufacturer || sys.model) rows.push({ label: 'Machine', value: ((sys.manufacturer || '') + ' ' + (sys.model || '')).trim() });
+      if (sys.osName) rows.push({ label: 'OS', value: sys.osName });
+      if (sys.cpu) rows.push({ label: 'CPU', value: truncate(sys.cpu, 40) });
+      if (sys.totalRam) rows.push({ label: 'Total RAM', value: sys.totalRam });
+      if (sys.availableRam) rows.push({ label: 'Available RAM', value: sys.availableRam });
+      if (sys.ramUsedPercent) {
+        var rCls = sys.ramUsedPercent > 90 ? 'bad' : sys.ramUsedPercent > 75 ? 'warn' : 'good';
+        rows.push({ label: 'RAM Used', value: sys.ramUsedPercent + '%', cls: rCls });
+      }
+      if (sys.gpu) rows.push({ label: 'GPU', value: truncate(sys.gpu, 40) });
+      if (rows.length > 0) cards.push({ title: '💻 System', rows: rows });
+    }
+
+    // DxDiag
+    var dx = summaries['DxDiag'];
+    if (dx && !sys) {
+      var rows = [];
+      if (dx.os) rows.push({ label: 'OS', value: dx.os });
+      if (dx.cpu) rows.push({ label: 'CPU', value: truncate(dx.cpu, 40) });
+      if (dx.ram) rows.push({ label: 'RAM', value: dx.ram });
+      if (dx.gpuName) rows.push({ label: 'GPU', value: truncate(dx.gpuName, 40) });
+      if (dx.vram) rows.push({ label: 'VRAM', value: dx.vram });
+      if (dx.directXVersion) rows.push({ label: 'DirectX', value: dx.directXVersion });
+      if (dx.driverVersion) rows.push({ label: 'GPU Driver', value: dx.driverVersion });
+      if (dx.driverDate) rows.push({ label: 'Driver Date', value: dx.driverDate });
+      if (rows.length > 0) cards.push({ title: '🎮 Graphics', rows: rows });
+    } else if (dx && sys) {
+      // Add GPU-specific info as separate card
+      var rows = [];
+      if (dx.gpuName) rows.push({ label: 'GPU', value: truncate(dx.gpuName, 40) });
+      if (dx.vram) rows.push({ label: 'VRAM', value: dx.vram });
+      if (dx.directXVersion) rows.push({ label: 'DirectX', value: dx.directXVersion });
+      if (dx.driverVersion) rows.push({ label: 'Driver Version', value: dx.driverVersion });
+      if (dx.driverDate) rows.push({ label: 'Driver Date', value: dx.driverDate });
+      if (rows.length > 0) cards.push({ title: '🎮 Graphics', rows: rows });
+    }
+
+    // Drivers
+    var drv = summaries['Driver Query'];
+    if (drv) {
+      var rows = [];
+      if (drv.totalDrivers) rows.push({ label: 'Total Drivers', value: drv.totalDrivers.toString() });
+      if (drv.outdatedDrivers !== undefined) {
+        var dCls = drv.outdatedDrivers > 5 ? 'warn' : 'good';
+        rows.push({ label: 'Outdated Drivers', value: drv.outdatedDrivers.toString(), cls: dCls });
+      }
+      if (rows.length > 0) cards.push({ title: '🔧 Drivers', rows: rows });
+    }
+
+    // Disk
+    var disk = summaries['Disk Info'];
+    if (disk) {
+      var rows = [];
+      if (disk.diskCount) rows.push({ label: 'Drives Found', value: disk.diskCount.toString() });
+      if (disk.disks) {
+        disk.disks.forEach(function(d) {
+          var size = d.sizeGB ? d.sizeGB + ' GB' : 'Unknown size';
+          rows.push({ label: d.model || 'Disk', value: size });
+        });
+      }
+      if (disk.volumeCount) rows.push({ label: 'Volumes', value: disk.volumeCount.toString() });
+      if (disk.volumes) {
+        disk.volumes.forEach(function(v) {
+          if (v.caption && v.freePercent !== undefined) {
+            var vCls = v.freePercent < 10 ? 'bad' : v.freePercent < 20 ? 'warn' : 'good';
+            rows.push({ label: v.caption, value: v.freePercent + '% free', cls: vCls });
+          }
+        });
+      }
+      if (rows.length > 0) cards.push({ title: '💾 Storage', rows: rows });
+    }
+
+    // Network
+    var net = summaries['Network Config'];
+    if (net) {
+      var rows = [];
+      if (net.adapters) {
+        net.adapters.forEach(function(a) {
+          if (a.name && a.ip) rows.push({ label: truncate(a.name, 25), value: a.ip });
+        });
+      }
+      if (net.dns) rows.push({ label: 'DNS', value: net.dns });
+      if (rows.length > 0) cards.push({ title: '🌐 Network', rows: rows });
+    }
+
+    // Events
+    var evt = summaries['System Events'];
+    if (evt) {
+      var rows = [];
+      if (evt.totalEvents !== undefined) rows.push({ label: 'Events Analyzed', value: evt.totalEvents.toString() });
+      if (evt.critical !== undefined) rows.push({ label: 'Critical', value: evt.critical.toString(), cls: evt.critical > 0 ? 'bad' : 'good' });
+      if (evt.errors !== undefined) rows.push({ label: 'Errors', value: evt.errors.toString(), cls: evt.errors > 10 ? 'warn' : 'good' });
+      if (evt.warnings !== undefined) rows.push({ label: 'Warnings', value: evt.warnings.toString() });
+      if (rows.length > 0) cards.push({ title: '📝 Event Log', rows: rows });
+    }
+
+    // Updates
+    var upd = summaries['Installed Updates'];
+    if (upd) {
+      var rows = [];
+      if (upd.totalUpdates !== undefined) rows.push({ label: 'Total Updates', value: upd.totalUpdates.toString() });
+      if (upd.latestUpdate) rows.push({ label: 'Most Recent', value: upd.latestUpdate });
+      if (upd.daysSinceLastUpdate !== undefined) {
+        var uCls = upd.daysSinceLastUpdate > 90 ? 'bad' : upd.daysSinceLastUpdate > 30 ? 'warn' : 'good';
+        rows.push({ label: 'Days Since Update', value: upd.daysSinceLastUpdate.toString(), cls: uCls });
+      }
+      if (rows.length > 0) cards.push({ title: '🛡️ Updates', rows: rows });
+    }
+
+    // Startup
+    var startup = summaries['Startup Programs'];
+    if (startup) {
+      var rows = [];
+      if (startup.totalPrograms !== undefined) {
+        var sCls = startup.totalPrograms > 15 ? 'warn' : 'good';
+        rows.push({ label: 'Startup Programs', value: startup.totalPrograms.toString(), cls: sCls });
+      }
+      if (rows.length > 0) cards.push({ title: '🚀 Startup', rows: rows });
+    }
+
+    // Processes
+    var proc = summaries['Running Processes'];
+    if (proc) {
+      var rows = [];
+      if (proc.totalProcesses !== undefined) rows.push({ label: 'Running Processes', value: proc.totalProcesses.toString() });
+      if (proc.highMemoryProcesses !== undefined && proc.highMemoryProcesses > 0) {
+        rows.push({ label: 'High Memory Processes', value: proc.highMemoryProcesses.toString(), cls: 'warn' });
+      }
+      if (rows.length > 0) cards.push({ title: '⚙️ Processes', rows: rows });
+    }
+
+    if (cards.length === 0) {
+      section.classList.add('hidden');
+      return;
+    }
+
+    section.classList.remove('hidden');
+    grid.innerHTML = cards.map(function(card) {
+      return '<div class="key-info-card"><h4>' + card.title + '</h4><div class="info-rows">' +
+        card.rows.map(function(row) {
+          var valClass = row.cls ? ' ' + row.cls : '';
+          return '<div class="info-row"><span class="info-label">' + P.escapeHtml(row.label) +
+            '</span><span class="info-value' + valClass + '">' + P.escapeHtml(row.value) + '</span></div>';
+        }).join('') + '</div></div>';
+    }).join('');
+  }
+
+  function formatMWh(mwh) {
+    if (mwh >= 1000) return (mwh / 1000).toFixed(1) + ' Wh';
+    return mwh + ' mWh';
+  }
+
+  function truncate(str, max) {
+    if (!str) return '';
+    return str.length > max ? str.substring(0, max - 1) + '…' : str;
   }
 
   function renderCategoryCards() {
