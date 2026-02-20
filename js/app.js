@@ -55,6 +55,7 @@
     initReset();
     initReportCheckboxes();
     initScriptDownloads();
+    initOsToggle();
     initEasterEgg();
     renderCategoryCards();
     renderProblems();
@@ -454,24 +455,64 @@
     }
 
     var severityIcons = { critical: '🔴', warning: '🟠', info: '🔵' };
+    var fixTypeLabels = { fixable: 'Auto-fixable', manual: 'Manual fix', hardware: 'Hardware' };
+    var fixTypeIcons = { fixable: '🔧', manual: '📖', hardware: '🔩' };
 
     list.innerHTML = filtered.map(function(issue, idx) {
+      // Get remediation info if available
+      var remediation = P.getRemediation ? P.getRemediation(issue) : null;
+      var badgeHtml = '';
+      var remediationHtml = '';
+
+      if (remediation) {
+        badgeHtml = '<span class="fix-badge ' + remediation.fixType + '">' +
+          (fixTypeIcons[remediation.fixType] || '') + ' ' +
+          (fixTypeLabels[remediation.fixType] || remediation.fixType) + '</span>';
+
+        var cmdHtml = '';
+        if (remediation.command) {
+          cmdHtml = '<button class="btn-copy-cmd" data-copy-cmd="' + P.escapeHtml(remediation.command) + '" title="Copy command to clipboard">' +
+            '<span class="cmd-icon">📋</span> ' + P.escapeHtml(remediation.command) + '</button>';
+        }
+
+        remediationHtml = '<div class="remediation-section">' +
+          badgeHtml +
+          cmdHtml +
+          '<p class="remediation-guide">' + P.escapeHtml(remediation.guide) + '</p>' +
+          '</div>';
+      }
+
       return '<div class="problem-item" data-severity="' + issue.severity + '" data-idx="' + idx + '">' +
         '<div class="problem-item-header">' +
         '<span class="problem-severity">' + (severityIcons[issue.severity] || '🔵') + '</span>' +
         '<span class="problem-title">' + P.escapeHtml(issue.title) + '</span>' +
+        (remediation ? '<span class="fix-badge ' + remediation.fixType + '">' + (fixTypeIcons[remediation.fixType] || '') + ' ' + (fixTypeLabels[remediation.fixType] || '') + '</span>' : '') +
         '<span class="problem-category-tag">' + (CATEGORY_LABELS[issue.category] || issue.category) + '</span>' +
         '<span class="problem-expand-icon">▼</span></div>' +
         '<div class="problem-detail"><div class="problem-detail-inner">' +
         (issue.detail ? '<p class="problem-explanation">' + P.escapeHtml(issue.detail) + '</p>' : '') +
         (issue.raw ? '<pre class="problem-raw">' + P.escapeHtml(issue.raw) + '</pre>' : '') +
         (issue.recommendation ? '<div class="problem-recommendation"><strong>Recommendation:</strong> ' + P.escapeHtml(issue.recommendation) + '</div>' : '') +
+        remediationHtml +
         '</div></div></div>';
     }).join('');
 
     list.querySelectorAll('.problem-item-header').forEach(function(header) {
       header.addEventListener('click', function() {
         P.toggleProblemExpand(header.closest('.problem-item'));
+      });
+    });
+
+    // Copy command buttons in remediation sections
+    list.querySelectorAll('.btn-copy-cmd').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var cmd = btn.dataset.copyCmd;
+        if (cmd && navigator.clipboard) {
+          navigator.clipboard.writeText(cmd).then(function() {
+            P.showToast('Command copied!', 'success');
+          });
+        }
       });
     });
   }
@@ -517,10 +558,28 @@
     });
   }
 
+  // ---- OS Toggle ----
+  function initOsToggle() {
+    var toggleBtns = document.querySelectorAll('.os-toggle-btn');
+    if (!toggleBtns.length) return;
+
+    // Default to 'auto' which shows all
+    document.body.dataset.osFilter = 'auto';
+
+    toggleBtns.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        toggleBtns.forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        document.body.dataset.osFilter = btn.dataset.os;
+      });
+    });
+  }
+
   // ---- Script Downloads (selective) ----
   function initScriptDownloads() {
     var batBtn = document.getElementById('generate-bat-btn');
     var ps1Btn = document.getElementById('generate-ps1-btn');
+    var shBtn = document.getElementById('generate-sh-btn');
 
     if (batBtn) batBtn.addEventListener('click', function() {
       var selected = getSelectedReports();
@@ -540,6 +599,13 @@
       }
       downloadSelectedPs1(selected);
       P.showToast('Downloaded .ps1 with ' + selected.length + ' report' + (selected.length > 1 ? 's' : ''), 'success');
+    });
+
+    if (shBtn) shBtn.addEventListener('click', function() {
+      if (P.downloadShScript) {
+        P.downloadShScript();
+        P.showToast('Downloaded Linux .sh script', 'success');
+      }
     });
   }
 
