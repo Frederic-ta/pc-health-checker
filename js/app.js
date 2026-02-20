@@ -7,7 +7,8 @@
   var state = {
     parseResults: new Map(),
     scores: null,
-    filters: { search: '', category: 'all', severity: 'all' }
+    filters: { search: '', category: 'all', severity: 'all' },
+    konamiProgress: 0
   };
 
   var CATEGORY_LABELS = {
@@ -24,6 +25,25 @@
     performance: 'No data — drop a perfmon report, startup list, or process list'
   };
 
+  // Report definitions for selective script generation
+  var SCRIPT_REPORTS = [
+    { id: 'battery', name: 'Battery Report', bat: 'powercfg /batteryreport /output "%OUTDIR%\\battery-report.html"', ps1: 'powercfg /batteryreport /output "$outDir\\battery-report.html" 2>$null', admin: true },
+    { id: 'energy', name: 'Energy Report', bat: 'powercfg /energy /output "%OUTDIR%\\energy-report.html"', ps1: 'powercfg /energy /output "$outDir\\energy-report.html" 2>$null', admin: true },
+    { id: 'sleep', name: 'Sleep Study', bat: 'powercfg /sleepstudy /output "%OUTDIR%\\sleep-study.html"', ps1: 'powercfg /sleepstudy /output "$outDir\\sleep-study.html" 2>$null', admin: true },
+    { id: 'msinfo', name: 'MSInfo32 Report', bat: 'msinfo32 /report "%OUTDIR%\\msinfo32.txt"', ps1: 'msinfo32 /report "$outDir\\msinfo32.txt"', admin: false },
+    { id: 'dxdiag', name: 'DxDiag Report', bat: 'dxdiag /t "%OUTDIR%\\dxdiag.txt"', ps1: 'dxdiag /t "$outDir\\dxdiag.txt"\nStart-Sleep -Seconds 10', admin: false },
+    { id: 'sysinfo', name: 'System Info', bat: 'systeminfo > "%OUTDIR%\\systeminfo.txt"', ps1: 'systeminfo > "$outDir\\systeminfo.txt"', admin: false },
+    { id: 'drivers', name: 'Driver Query', bat: 'driverquery /v /fo csv > "%OUTDIR%\\driverquery.csv"', ps1: 'driverquery /v /fo csv > "$outDir\\drivers.csv"', admin: false },
+    { id: 'disk', name: 'Disk Info', bat: 'wmic diskdrive get model,size,status /format:csv > "%OUTDIR%\\disk-info.csv"', ps1: 'wmic diskdrive get model,size,status /format:csv > "$outDir\\disk-info.csv"', admin: false },
+    { id: 'volume', name: 'Volume Info', bat: 'wmic volume get caption,capacity,freespace /format:csv > "%OUTDIR%\\volume-info.csv"', ps1: 'wmic volume get caption,capacity,freespace /format:csv > "$outDir\\volume-info.csv"', admin: false },
+    { id: 'wifi', name: 'WiFi Report', bat: 'netsh wlan show wlanreport & copy "%ProgramData%\\Microsoft\\Windows\\WlanReport\\wlan-report-latest.html" "%OUTDIR%\\wifi-report.html"', ps1: 'netsh wlan show wlanreport 2>$null\nCopy-Item "$env:ProgramData\\Microsoft\\Windows\\WlanReport\\wlan-report-latest.html" "$outDir\\wifi-report.html" -ErrorAction SilentlyContinue', admin: true },
+    { id: 'network', name: 'Network Config', bat: 'ipconfig /all > "%OUTDIR%\\ipconfig.txt"', ps1: 'ipconfig /all > "$outDir\\network-config.txt"', admin: false },
+    { id: 'updates', name: 'Installed Updates', bat: 'wmic qfe list full /format:csv > "%OUTDIR%\\updates.csv"', ps1: 'wmic qfe list full /format:csv > "$outDir\\updates.csv"', admin: false },
+    { id: 'events', name: 'System Events', bat: 'wevtutil qe System /c:100 /f:xml /rd:true > "%OUTDIR%\\system-events.xml"', ps1: 'wevtutil qe System /c:100 /f:xml /rd:true > "$outDir\\system-events.xml"', admin: true },
+    { id: 'startup', name: 'Startup Programs', bat: 'wmic startup get caption,command /format:csv > "%OUTDIR%\\startup.csv"', ps1: 'wmic startup get caption,command /format:csv > "$outDir\\startup.csv"', admin: false },
+    { id: 'processes', name: 'Running Processes', bat: 'tasklist /v /fo csv > "%OUTDIR%\\tasklist.csv"', ps1: 'tasklist /v /fo csv > "$outDir\\processes.csv"', admin: false }
+  ];
+
   document.addEventListener('DOMContentLoaded', function() {
     P.initTheme();
     P.initOnboarding();
@@ -32,12 +52,70 @@
     P.initDropZone(handleFilesDropped);
     initFilters();
     initExport();
+    initReset();
+    initReportCheckboxes();
     initScriptDownloads();
+    initEasterEgg();
     renderCategoryCards();
     renderProblems();
     P.animateScoreRing(null);
   });
 
+  // ---- Reset ----
+  function initReset() {
+    document.getElementById('reset-btn').addEventListener('click', function() {
+      if (state.parseResults.size === 0) {
+        P.showToast('Nothing to reset', 'info');
+        return;
+      }
+      state.parseResults.clear();
+      state.scores = null;
+      render();
+      P.showToast('All reports cleared!', 'success');
+    });
+  }
+
+  // ---- Report Checkboxes ----
+  function initReportCheckboxes() {
+    // Add checkboxes to each report card
+    var cards = document.querySelectorAll('.report-command-card');
+    cards.forEach(function(card, idx) {
+      if (idx < SCRIPT_REPORTS.length) {
+        var header = card.querySelector('.command-card-header');
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = true;
+        cb.className = 'report-checkbox';
+        cb.dataset.reportIdx = idx;
+        cb.title = 'Include in script download';
+        header.insertBefore(cb, header.firstChild);
+      }
+    });
+
+    // Select All button
+    var selectAllBtn = document.getElementById('select-all-reports');
+    if (selectAllBtn) {
+      selectAllBtn.addEventListener('click', function() {
+        var checkboxes = document.querySelectorAll('.report-checkbox');
+        var allChecked = Array.from(checkboxes).every(function(cb) { return cb.checked; });
+        checkboxes.forEach(function(cb) { cb.checked = !allChecked; });
+        selectAllBtn.textContent = allChecked ? '☑️ Select All' : '☐ Deselect All';
+      });
+    }
+  }
+
+  function getSelectedReports() {
+    var selected = [];
+    document.querySelectorAll('.report-checkbox').forEach(function(cb) {
+      if (cb.checked) {
+        var idx = parseInt(cb.dataset.reportIdx, 10);
+        if (SCRIPT_REPORTS[idx]) selected.push(SCRIPT_REPORTS[idx]);
+      }
+    });
+    return selected;
+  }
+
+  // ---- File Drop ----
   function handleFilesDropped(files) {
     var parsedCount = 0;
     var processed = 0;
@@ -198,37 +276,166 @@
     });
   }
 
+  // ---- Script Downloads (selective) ----
   function initScriptDownloads() {
     var batBtn = document.getElementById('generate-bat-btn');
     var ps1Btn = document.getElementById('generate-ps1-btn');
+
     if (batBtn) batBtn.addEventListener('click', function() {
-      P.downloadBatScript();
-      P.showToast('Downloaded generate-health-reports.bat', 'success');
+      var selected = getSelectedReports();
+      if (selected.length === 0) {
+        P.showToast('Select at least one report to include!', 'warning');
+        return;
+      }
+      downloadSelectedBat(selected);
+      P.showToast('Downloaded .bat with ' + selected.length + ' report' + (selected.length > 1 ? 's' : ''), 'success');
     });
+
     if (ps1Btn) ps1Btn.addEventListener('click', function() {
-      handlePs1Download();
+      var selected = getSelectedReports();
+      if (selected.length === 0) {
+        P.showToast('Select at least one report to include!', 'warning');
+        return;
+      }
+      downloadSelectedPs1(selected);
+      P.showToast('Downloaded .ps1 with ' + selected.length + ' report' + (selected.length > 1 ? 's' : ''), 'success');
     });
   }
 
-  function handlePs1Download() {
-    var script = '# PC Health Checker - Report Generator (PowerShell)\n# Run as Administrator\n\n' +
-      '$outDir = "$env:USERPROFILE\\Desktop\\PC-Health-Reports_$(Get-Date -Format yyyyMMdd_HHmm)"\n' +
-      'New-Item -ItemType Directory -Path $outDir -Force | Out-Null\n\n' +
-      'powercfg /batteryreport /output "$outDir\\battery-report.html" 2>$null\n' +
-      'powercfg /energy /output "$outDir\\energy-report.html" 2>$null\n' +
-      'powercfg /sleepstudy /output "$outDir\\sleep-study.html" 2>$null\n' +
-      'msinfo32 /report "$outDir\\msinfo32.txt"\n' +
-      'dxdiag /t "$outDir\\dxdiag.txt"\n' +
-      'systeminfo > "$outDir\\systeminfo.txt"\n' +
-      'driverquery /v /fo csv > "$outDir\\drivers.csv"\n' +
-      'wmic diskdrive get model,size,status /format:csv > "$outDir\\disk-info.csv"\n' +
-      'ipconfig /all > "$outDir\\network-config.txt"\n' +
-      'wmic qfe list full /format:csv > "$outDir\\updates.csv"\n' +
-      'wevtutil qe System /c:100 /f:xml /rd:true > "$outDir\\system-events.xml"\n' +
-      'wmic startup get caption,command /format:csv > "$outDir\\startup.csv"\n' +
-      'tasklist /v /fo csv > "$outDir\\processes.csv"\n\n' +
-      'Write-Host "Done! Reports saved to: $outDir"\nRead-Host "Press Enter to exit"';
-    P.downloadFile(script, 'generate-all-reports.ps1', 'text/plain');
-    P.showToast('Downloaded generate-all-reports.ps1', 'success');
+  function downloadSelectedBat(reports) {
+    var lines = [
+      '@echo off',
+      'echo ================================================',
+      'echo   PC Health Checker - Report Generator',
+      'echo   Run as Administrator for best results',
+      'echo ================================================',
+      'echo.',
+      '',
+      'set TIMESTAMP=%date:~-4%%date:~3,2%%date:~0,2%_%time:~0,2%%time:~3,2%%time:~6,2%',
+      'set TIMESTAMP=%TIMESTAMP: =0%',
+      'set OUTDIR=%USERPROFILE%\\Desktop\\PC-Health-Reports_%TIMESTAMP%',
+      'mkdir "%OUTDIR%"',
+      'echo Output folder: %OUTDIR%',
+      'echo.', ''
+    ];
+    reports.forEach(function(r, i) {
+      var note = r.admin ? ' (may require admin)' : '';
+      lines.push('echo [' + (i + 1) + '/' + reports.length + '] ' + r.name + '...' + note);
+      lines.push(r.bat + ' 2>nul');
+      lines.push('');
+    });
+    lines.push('echo.', 'echo Done! Reports saved to: %OUTDIR%', 'pause');
+    P.downloadFile(lines.join('\r\n'), 'generate-health-reports.bat', 'application/bat');
+  }
+
+  function downloadSelectedPs1(reports) {
+    var lines = [
+      '# PC Health Checker - Report Generator (PowerShell)',
+      '# Run as Administrator for best results',
+      '',
+      '$outDir = "$env:USERPROFILE\\Desktop\\PC-Health-Reports_$(Get-Date -Format yyyyMMdd_HHmm)"',
+      'New-Item -ItemType Directory -Path $outDir -Force | Out-Null',
+      ''
+    ];
+    reports.forEach(function(r, i) {
+      lines.push('Write-Host "[' + (i + 1) + '/' + reports.length + '] ' + r.name + '..."');
+      lines.push(r.ps1);
+      lines.push('');
+    });
+    lines.push('Write-Host "Done! Reports saved to: $outDir"');
+    lines.push('Read-Host "Press Enter to exit"');
+    P.downloadFile(lines.join('\n'), 'generate-all-reports.ps1', 'text/plain');
+  }
+
+  // ---- Easter Egg: Konami Code ----
+  function initEasterEgg() {
+    var konami = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65]; // ↑↑↓↓←→←→BA
+    var progress = 0;
+
+    document.addEventListener('keydown', function(e) {
+      if (e.keyCode === konami[progress]) {
+        progress++;
+        if (progress === konami.length) {
+          progress = 0;
+          activateEasterEgg();
+        }
+      } else {
+        progress = 0;
+      }
+    });
+
+    // Secret: click the title icon 5 times fast
+    var titleClicks = 0;
+    var titleTimer = null;
+    var titleIcon = document.querySelector('.title-icon');
+    if (titleIcon) {
+      titleIcon.style.cursor = 'pointer';
+      titleIcon.addEventListener('click', function(e) {
+        e.stopPropagation();
+        titleClicks++;
+        clearTimeout(titleTimer);
+        titleTimer = setTimeout(function() { titleClicks = 0; }, 2000);
+        if (titleClicks >= 5) {
+          titleClicks = 0;
+          activateEasterEgg();
+        }
+      });
+    }
+  }
+
+  function activateEasterEgg() {
+    // Matrix rain effect
+    var canvas = document.createElement('canvas');
+    canvas.id = 'matrix-canvas';
+    canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;pointer-events:none;opacity:0.85;';
+    document.body.appendChild(canvas);
+
+    var ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    var chars = '01アイウエオカキクケコサシスセソPCHEALTH🏥💻⚡🔧'.split('');
+    var fontSize = 14;
+    var columns = Math.floor(canvas.width / fontSize);
+    var drops = [];
+    for (var i = 0; i < columns; i++) drops[i] = Math.random() * -100;
+
+    var frameCount = 0;
+    var maxFrames = 180; // ~3 seconds at 60fps
+
+    function draw() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#0f0';
+      ctx.font = fontSize + 'px monospace';
+
+      for (var j = 0; j < drops.length; j++) {
+        var text = chars[Math.floor(Math.random() * chars.length)];
+        ctx.fillText(text, j * fontSize, drops[j] * fontSize);
+        if (drops[j] * fontSize > canvas.height && Math.random() > 0.975) drops[j] = 0;
+        drops[j]++;
+      }
+
+      frameCount++;
+      if (frameCount < maxFrames) {
+        requestAnimationFrame(draw);
+      } else {
+        // Fade out
+        canvas.style.transition = 'opacity 1s';
+        canvas.style.opacity = '0';
+        setTimeout(function() { canvas.remove(); }, 1000);
+      }
+    }
+
+    draw();
+
+    // Show secret message
+    P.showToast('🐱 Achievement Unlocked: You found the secret! Your PC thanks you.', 'success');
+
+    // Bonus: temporarily change the title
+    var titleEl = document.querySelector('.app-title');
+    var originalTitle = titleEl.innerHTML;
+    titleEl.innerHTML = '<span class="title-icon">🐱</span> PC Health Checker <small style="font-size:0.5em;opacity:0.7">// built with love by KatKat & Kuro</small>';
+    setTimeout(function() { titleEl.innerHTML = originalTitle; }, 8000);
   }
 })();
