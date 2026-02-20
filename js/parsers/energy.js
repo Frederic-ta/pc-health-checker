@@ -1,6 +1,11 @@
 // Energy Report Parser — powercfg /energy HTML
 
-export default {
+(function() {
+  'use strict';
+  window.PCHC = window.PCHC || {};
+  window.PCHC.parsers = window.PCHC.parsers || {};
+
+  window.PCHC.parsers.energy = {
   name: 'Energy Report',
   category: 'power',
 
@@ -145,3 +150,6 @@ function extractSection(content, keyword) {
   const snippet = content.substring(idx, idx + 300).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
   return snippet.substring(0, 200);
 }
+
+
+})();

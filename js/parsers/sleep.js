@@ -1,6 +1,11 @@
 // Sleep Study Parser — powercfg /sleepstudy HTML
 
-export default {
+(function() {
+  'use strict';
+  window.PCHC = window.PCHC || {};
+  window.PCHC.parsers = window.PCHC.parsers || {};
+
+  window.PCHC.parsers.sleep = {
   name: 'Sleep Study',
   category: 'power',
 
@@ -135,3 +140,6 @@ export default {
     return { summary, score, issues };
   }
 };
+
+
+})();

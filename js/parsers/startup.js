@@ -1,6 +1,11 @@
 // Startup Programs Parser — wmic startup CSV
 
-export default {
+(function() {
+  'use strict';
+  window.PCHC = window.PCHC || {};
+  window.PCHC.parsers = window.PCHC.parsers || {};
+
+  window.PCHC.parsers.startup = {
   name: 'Startup Programs',
   category: 'performance',
 
@@ -156,3 +161,6 @@ function parseCSV(text) {
   }
   return rows;
 }
+
+
+})();

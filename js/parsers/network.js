@@ -1,6 +1,11 @@
 // Network Config Parser — ipconfig /all TXT
 
-export default {
+(function() {
+  'use strict';
+  window.PCHC = window.PCHC || {};
+  window.PCHC.parsers = window.PCHC.parsers || {};
+
+  window.PCHC.parsers.network = {
   name: 'Network Config',
   category: 'network',
 
@@ -166,3 +171,6 @@ function extractAllFields(block, label) {
   }
   return results;
 }
+
+
+})();

@@ -571,7 +571,33 @@
     <p>PC Health Checker &mdash; 100% offline &amp; private. No data leaves your browser.</p>
   </footer>
 
-  <script type="module" src="js/ui.js"></script>
-  <script type="module" src="js/app.js"></script>
+  <!-- UI utilities (must load first) -->
+  <script src="js/ui.js"></script>
+
+  <!-- Parsers -->
+  <script src="js/parsers/battery.js"></script>
+  <script src="js/parsers/energy.js"></script>
+  <script src="js/parsers/sleep.js"></script>
+  <script src="js/parsers/msinfo.js"></script>
+  <script src="js/parsers/dxdiag.js"></script>
+  <script src="js/parsers/sysinfo.js"></script>
+  <script src="js/parsers/drivers.js"></script>
+  <script src="js/parsers/disk.js"></script>
+  <script src="js/parsers/wifi.js"></script>
+  <script src="js/parsers/network.js"></script>
+  <script src="js/parsers/updates.js"></script>
+  <script src="js/parsers/events.js"></script>
+  <script src="js/parsers/startup.js"></script>
+  <script src="js/parsers/processes.js"></script>
+  <script src="js/parsers/index.js"></script>
+
+  <!-- Scoring, search, export, generator -->
+  <script src="js/scoring.js"></script>
+  <script src="js/search.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/generator.js"></script>
+
+  <!-- Main app (loads last) -->
+  <script src="js/app.js"></script>
 </body>
 </html>

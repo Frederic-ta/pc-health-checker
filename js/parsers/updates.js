@@ -1,6 +1,11 @@
 // Windows Updates Parser — wmic qfe list full /format:csv CSV
 
-export default {
+(function() {
+  'use strict';
+  window.PCHC = window.PCHC || {};
+  window.PCHC.parsers = window.PCHC.parsers || {};
+
+  window.PCHC.parsers.updates = {
   name: 'Windows Updates',
   category: 'security',
 
@@ -158,3 +163,6 @@ function parseUpdateDate(str) {
   const d = new Date(str);
   return isNaN(d.getTime()) ? null : d;
 }
+
+
+})();

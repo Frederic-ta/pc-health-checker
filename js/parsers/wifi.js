@@ -1,6 +1,11 @@
 // WiFi Report Parser — netsh wlan show wlanreport HTML
 
-export default {
+(function() {
+  'use strict';
+  window.PCHC = window.PCHC || {};
+  window.PCHC.parsers = window.PCHC.parsers || {};
+
+  window.PCHC.parsers.wifi = {
   name: 'WiFi Report',
   category: 'network',
 
@@ -145,3 +150,6 @@ export default {
     return { summary, score, issues };
   }
 };
+
+
+})();

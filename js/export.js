@@ -1,188 +1,90 @@
-// Export — generate markdown summary, copy to clipboard or download
+// Export — generate markdown summary and download
 
-const SEVERITY_ICONS = {
-  critical: '\u{1F534}',  // Red circle
-  warning: '\u{1F7E0}',   // Orange circle
-  info: '\u{1F535}'        // Blue circle
-};
+(function() {
+  'use strict';
+  window.PCHC = window.PCHC || {};
 
-const CATEGORY_ICONS = {
-  power: '\u26A1',
-  system: '\u{1F4BB}',
-  storage: '\u{1F4BE}',
-  network: '\u{1F310}',
-  security: '\u{1F6E1}\uFE0F',
-  performance: '\u{1F680}'
-};
+  var SEVERITY_ICONS = { critical: '🔴', warning: '🟠', info: '🔵' };
+  var CATEGORY_ICONS = { power: '⚡', system: '💻', storage: '💾', network: '🌐', security: '🛡️', performance: '🚀' };
+  var CATEGORY_LABELS = { power: 'Power & Battery', system: 'System & Hardware', storage: 'Storage', network: 'Network', security: 'Security', performance: 'Performance' };
 
-const CATEGORY_LABELS = {
-  power: 'Power & Battery',
-  system: 'System & Hardware',
-  storage: 'Storage',
-  network: 'Network',
-  security: 'Security',
-  performance: 'Performance'
-};
-
-/**
- * Generate a markdown report from scoring results.
- * @param {object} scores - Output from calculateScores()
- * @returns {string} Markdown content
- */
-export function generateMarkdown(scores) {
-  const lines = [];
-  const now = new Date();
-
-  lines.push('# PC Health Check Report');
-  lines.push(`*Generated: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}*`);
-  lines.push('');
-
-  // Global score
-  if (scores.globalScore !== null) {
-    lines.push(`## Global Health Score: ${scores.globalScore}/100 (${getScoreLabel(scores.globalScore)})`);
-    lines.push('');
-    lines.push(generateScoreBar(scores.globalScore));
-    lines.push('');
-  } else {
-    lines.push('## Global Health Score: No Data');
-    lines.push('');
+  function getScoreLabel(score) {
+    if (score >= 90) return 'Excellent';
+    if (score >= 80) return 'Good';
+    if (score >= 60) return 'Fair';
+    if (score >= 40) return 'Poor';
+    return 'Critical';
   }
 
-  // Category breakdown
-  lines.push('## Category Breakdown');
-  lines.push('');
-  lines.push('| Category | Score | Critical | Warning | Info |');
-  lines.push('|----------|-------|----------|---------|------|');
+  function generateMarkdown(scores) {
+    var lines = [];
+    var now = new Date();
+    lines.push('# PC Health Check Report');
+    lines.push('*Generated: ' + now.toLocaleDateString() + ' ' + now.toLocaleTimeString() + '*');
+    lines.push('');
 
-  for (const [cat, data] of Object.entries(scores.categoryScores)) {
-    const icon = CATEGORY_ICONS[cat] || '';
-    const label = CATEGORY_LABELS[cat] || cat;
-    if (data.hasData) {
-      lines.push(`| ${icon} ${label} | ${data.score}/100 | ${data.issueCounts.critical} | ${data.issueCounts.warning} | ${data.issueCounts.info} |`);
+    if (scores.globalScore !== null) {
+      lines.push('## Global Health Score: ' + scores.globalScore + '/100 (' + getScoreLabel(scores.globalScore) + ')');
     } else {
-      lines.push(`| ${icon} ${label} | No data | - | - | - |`);
+      lines.push('## Global Health Score: No Data');
     }
-  }
-  lines.push('');
-
-  // All issues by severity
-  lines.push('## Issues Found');
-  lines.push('');
-
-  const severityGroups = [
-    { key: 'critical', label: 'Critical Issues' },
-    { key: 'warning', label: 'Warnings' },
-    { key: 'info', label: 'Informational' }
-  ];
-
-  for (const group of severityGroups) {
-    const groupIssues = scores.allIssues.filter(i => i.severity === group.key);
-    if (groupIssues.length === 0) continue;
-
-    const icon = SEVERITY_ICONS[group.key];
-    lines.push(`### ${icon} ${group.label} (${groupIssues.length})`);
     lines.push('');
 
-    for (const issue of groupIssues) {
-      const catIcon = CATEGORY_ICONS[issue.category] || '';
-      lines.push(`#### ${catIcon} ${issue.title}`);
-      lines.push(`- **Source:** ${issue.parserName}`);
-      lines.push(`- **Detail:** ${issue.detail}`);
-      if (issue.raw) {
-        lines.push(`- **Raw Data:** \`${issue.raw.substring(0, 150)}\``);
+    lines.push('## Category Breakdown');
+    lines.push('');
+    lines.push('| Category | Score | Critical | Warning | Info |');
+    lines.push('|----------|-------|----------|---------|------|');
+
+    Object.keys(scores.categoryScores).forEach(function(cat) {
+      var data = scores.categoryScores[cat];
+      var icon = CATEGORY_ICONS[cat] || '';
+      var label = CATEGORY_LABELS[cat] || cat;
+      if (data.hasData) {
+        lines.push('| ' + icon + ' ' + label + ' | ' + data.score + '/100 | ' + data.issueCounts.critical + ' | ' + data.issueCounts.warning + ' | ' + data.issueCounts.info + ' |');
+      } else {
+        lines.push('| ' + icon + ' ' + label + ' | No data | - | - | - |');
       }
-      lines.push(`- **Recommendation:** ${issue.recommendation}`);
+    });
+    lines.push('');
+
+    lines.push('## Issues Found');
+    lines.push('');
+
+    ['critical', 'warning', 'info'].forEach(function(sev) {
+      var groupIssues = scores.allIssues.filter(function(i) { return i.severity === sev; });
+      if (groupIssues.length === 0) return;
+      lines.push('### ' + SEVERITY_ICONS[sev] + ' ' + sev.charAt(0).toUpperCase() + sev.slice(1) + ' (' + groupIssues.length + ')');
       lines.push('');
-    }
+      groupIssues.forEach(function(issue) {
+        lines.push('#### ' + (CATEGORY_ICONS[issue.category] || '') + ' ' + issue.title);
+        lines.push('- **Detail:** ' + issue.detail);
+        if (issue.recommendation) lines.push('- **Recommendation:** ' + issue.recommendation);
+        lines.push('');
+      });
+    });
+
+    return lines.join('\n');
   }
 
-  // Summary stats
-  lines.push('---');
-  lines.push(`*${scores.categoriesWithData} of ${scores.totalCategories} categories analyzed | ${scores.allIssues.length} total issues (${scores.totalIssueCounts.critical} critical, ${scores.totalIssueCounts.warning} warnings, ${scores.totalIssueCounts.info} info)*`);
-  lines.push('');
-  lines.push('*Report generated by [PC Health Checker](https://github.com) — 100% offline, no data sent anywhere*');
-
-  return lines.join('\n');
-}
-
-/**
- * Copy text to clipboard.
- * @param {string} text
- * @returns {Promise<boolean>}
- */
-export async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    // Fallback for older browsers
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    try {
-      document.execCommand('copy');
-      return true;
-    } catch {
-      return false;
-    } finally {
-      document.body.removeChild(textarea);
-    }
+  function downloadFile(content, filename, mimeType) {
+    mimeType = mimeType || 'text/markdown';
+    var blob = new Blob([content], { type: mimeType });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
-}
 
-/**
- * Download text as a file.
- * @param {string} content - File content
- * @param {string} filename - File name
- * @param {string} [mimeType='text/markdown'] - MIME type
- */
-export function downloadFile(content, filename, mimeType = 'text/markdown') {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
+  function exportToFile(scores) {
+    var md = generateMarkdown(scores);
+    var date = new Date().toISOString().split('T')[0];
+    downloadFile(md, 'pc-health-report-' + date + '.md');
+  }
 
-/**
- * Export scores as markdown — copy to clipboard.
- * @param {object} scores
- * @returns {Promise<boolean>}
- */
-export async function exportToClipboard(scores) {
-  const md = generateMarkdown(scores);
-  return copyToClipboard(md);
-}
-
-/**
- * Export scores as markdown — download file.
- * @param {object} scores
- */
-export function exportToFile(scores) {
-  const md = generateMarkdown(scores);
-  const date = new Date().toISOString().split('T')[0];
-  downloadFile(md, `pc-health-report-${date}.md`);
-}
-
-function getScoreLabel(score) {
-  if (score >= 90) return 'Excellent';
-  if (score >= 80) return 'Good';
-  if (score >= 60) return 'Fair';
-  if (score >= 40) return 'Poor';
-  return 'Critical';
-}
-
-function generateScoreBar(score) {
-  const filled = Math.round(score / 5);
-  const empty = 20 - filled;
-  return `\`[${'█'.repeat(filled)}${'░'.repeat(empty)}] ${score}/100\``;
-}
-
-export default { generateMarkdown, copyToClipboard, downloadFile, exportToClipboard, exportToFile };
+  window.PCHC.exportToFile = exportToFile;
+  window.PCHC.downloadFile = downloadFile;
+})();

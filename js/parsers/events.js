@@ -1,6 +1,11 @@
 // System Events Parser — wevtutil XML
 
-export default {
+(function() {
+  'use strict';
+  window.PCHC = window.PCHC || {};
+  window.PCHC.parsers = window.PCHC.parsers || {};
+
+  window.PCHC.parsers.events = {
   name: 'System Events',
   category: 'security',
 
@@ -181,3 +186,6 @@ function getTopSources(events, n) {
     .slice(0, n)
     .map(([source, count]) => `${source} (${count})`);
 }
+
+
+})();

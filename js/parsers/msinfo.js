@@ -1,6 +1,11 @@
 // MSInfo32 Parser — msinfo32 /report TXT
 
-export default {
+(function() {
+  'use strict';
+  window.PCHC = window.PCHC || {};
+  window.PCHC.parsers = window.PCHC.parsers || {};
+
+  window.PCHC.parsers.msinfo = {
   name: 'MSInfo32 Report',
   category: 'system',
 
@@ -165,3 +170,6 @@ function parseRamToGB(str) {
   if (unit === 'KB') return val / (1024 * 1024);
   return 0;
 }
+
+
+})();

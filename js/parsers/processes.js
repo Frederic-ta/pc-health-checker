@@ -1,6 +1,11 @@
 // Process List Parser — tasklist /v /fo csv CSV
 
-export default {
+(function() {
+  'use strict';
+  window.PCHC = window.PCHC || {};
+  window.PCHC.parsers = window.PCHC.parsers || {};
+
+  window.PCHC.parsers.processes = {
   name: 'Running Processes',
   category: 'performance',
 
@@ -196,3 +201,6 @@ function parseCSV(text) {
   }
   return rows;
 }
+
+
+})();
