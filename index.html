@@ -61,14 +61,14 @@
       <h1 class="app-title"><span class="title-icon">🏥</span> PC Health Checker</h1>
     </div>
     <div class="header-right">
-      <button id="theme-toggle" class="btn btn-icon" title="Toggle dark/light mode" aria-label="Toggle theme">
+      <button id="theme-toggle" class="btn btn-icon has-tooltip" title="Switch between dark and light theme" aria-label="Toggle theme">
         <span class="theme-icon-dark">🌙</span>
         <span class="theme-icon-light">☀️</span>
       </button>
-      <button id="reset-btn" class="btn btn-icon" title="Reset all reports" aria-label="Reset">
+      <button id="reset-btn" class="btn btn-icon has-tooltip" title="Clear all loaded reports and reset the health score" aria-label="Reset">
         🗑️
       </button>
-      <button id="export-btn" class="btn btn-secondary" title="Export health summary">
+      <button id="export-btn" class="btn btn-secondary has-tooltip" title="Download a Markdown summary of your health score and all issues found">
         <span class="btn-icon-label">📄</span> Export
       </button>
     </div>
@@ -76,13 +76,13 @@
 
   <!-- Tab navigation -->
   <nav class="tab-nav">
-    <button class="tab-btn active" data-tab="analyze">
+    <button class="tab-btn active has-tooltip" data-tab="analyze" title="Drop report files here to get your PC health score">
       <span class="tab-icon">🔍</span> Analyze
     </button>
-    <button class="tab-btn" data-tab="reports">
+    <button class="tab-btn has-tooltip" data-tab="reports" title="Get the Windows commands to generate diagnostic reports">
       <span class="tab-icon">📋</span> Reports &amp; Commands
     </button>
-    <button class="tab-btn" data-tab="about">
+    <button class="tab-btn has-tooltip" data-tab="about" title="How this tool works and privacy info">
       <span class="tab-icon">ℹ️</span> About
     </button>
   </nav>
@@ -94,7 +94,7 @@
     <section id="tab-analyze" class="tab-content active">
 
       <!-- Drop zone -->
-      <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drop report files here or click to browse">
+      <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drop report files here or click to browse" title="Drag & drop your Windows diagnostic files here, or click to browse. Supports HTML, XML, TXT, CSV files">
         <input type="file" id="file-input" multiple accept=".html,.htm,.xml,.txt,.csv,.log" hidden>
         <div class="drop-zone-content">
           <div class="drop-zone-icon">📂</div>
@@ -282,9 +282,9 @@
         <h2>Generate Windows Reports</h2>
         <p>Run these commands on your Windows PC to generate diagnostic reports, then drag the files back here for analysis.</p>
         <div class="reports-actions">
-          <button id="select-all-reports" class="btn btn-ghost">☑️ Select All</button>
-          <button id="generate-bat-btn" class="btn btn-primary">⬇️ Download .bat Script</button>
-          <button id="generate-ps1-btn" class="btn btn-secondary">⬇️ Download .ps1 Script</button>
+          <button id="select-all-reports" class="btn btn-ghost has-tooltip" title="Check or uncheck all reports for script generation">☑️ Select All</button>
+          <button id="generate-bat-btn" class="btn btn-primary has-tooltip" title="Download a .bat script (Command Prompt) — run it as Admin on Windows to generate selected reports">⬇️ Download .bat Script</button>
+          <button id="generate-ps1-btn" class="btn btn-secondary has-tooltip" title="Download a .ps1 script (PowerShell) — same thing but for the modern Windows terminal">⬇️ Download .ps1 Script</button>
         </div>
       </div>
 
